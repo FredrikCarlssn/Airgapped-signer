@@ -1,0 +1,30 @@
+{
+  "name": "airgapped-computer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "start": "ts-node src/safeSDK/createSafe.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@ethers-ext/signer-ledger": "^6.0.0-beta.1",
+    "@ledgerhq/hw-app-eth": "^6.38.1",
+    "@ledgerhq/hw-transport-node-hid": "^6.29.4",
+    "@safe-global/api-kit": "^2.4.5",
+    "@safe-global/protocol-kit": "^4.1.0",
+    "@safe-global/safe-core-sdk-types": "^5.1.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2",
+    "install": "^0.13.0",
+    "npm": "^10.8.3",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
+  }
+}
