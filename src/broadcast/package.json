@@ -27,5 +27,12 @@
         "gh-pages": "^6.1.1",
         "typescript": "^5.2.2",
         "vite": "^5.0.8"
+    },
+    "pnpm": {
+        "peerDependencyRules": {
+            "ignoreMissing": [
+                "@types/react"
+            ]
+        }
     }
 }

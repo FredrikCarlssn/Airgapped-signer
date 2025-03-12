@@ -35,25 +35,36 @@ This application maintains the security benefits of airgapped signing by:
 ### Prerequisites
 
 - Node.js (v14+)
-- npm or yarn
+- pnpm (recommended) or npm
+
+### Setting up pnpm (Recommended)
+
+This project uses pnpm for faster and more efficient dependency management. To set up pnpm:
+
+```bash
+# Run the included setup script
+cd src/broadcast
+chmod +x setup-pnpm.sh
+./setup-pnpm.sh
+```
 
 ### Installation
 
 ```bash
 cd src/broadcast
-npm install
+pnpm install  # or npm install
 ```
 
 ### Running Locally
 
 ```bash
-npm run dev
+pnpm dev  # or npm run dev
 ```
 
 ### Building for Production
 
 ```bash
-npm run build
+pnpm build  # or npm run build
 ```
 
 ## Deployment to GitHub Pages
@@ -79,12 +90,15 @@ Run the included deployment script:
 
 ```bash
 cd src/broadcast
+chmod +x deploy.sh  # Make sure the script is executable
 ./deploy.sh
 ```
 
+The script will automatically use pnpm if available, or fall back to npm.
+
 ### Automated Deployment
 
-This project includes a GitHub Actions workflow that automatically deploys to GitHub Pages when you push to the main branch.
+This project includes a GitHub Actions workflow that automatically deploys to GitHub Pages when you push to the main branch. The workflow is configured to use pnpm.
 
 To enable this:
 

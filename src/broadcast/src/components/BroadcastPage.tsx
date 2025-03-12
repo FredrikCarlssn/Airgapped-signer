@@ -23,13 +23,16 @@ interface SignedTransactionData {
 // Broadcast status types
 type BroadcastStatus = 'idle' | 'pending' | 'success' | 'error'
 
+// Define a union type for provider
+type Provider = ethers.BrowserProvider | ethers.JsonRpcProvider
+
 const BroadcastPage = () => {
   const { txData } = useParams<{ txData: string }>()
   const [transactionData, setTransactionData] = useState<SignedTransactionData | null>(null)
   const [broadcastStatus, setBroadcastStatus] = useState<BroadcastStatus>('idle')
   const [txHash, setTxHash] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null)
+  const [provider, setProvider] = useState<Provider | null>(null)
 
   // Parse transaction data from URL
   useEffect(() => {
@@ -77,12 +80,12 @@ const BroadcastPage = () => {
       try {
         // Check if window.ethereum exists (MetaMask or other wallet)
         if (window.ethereum) {
-          const provider = new ethers.BrowserProvider(window.ethereum)
-          setProvider(provider)
+          const browserProvider = new ethers.BrowserProvider(window.ethereum)
+          setProvider(browserProvider)
         } else {
           // Fallback to a public provider
-          const provider = new ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/demo')
-          setProvider(provider)
+          const jsonRpcProvider = new ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/demo')
+          setProvider(jsonRpcProvider)
         }
       } catch (error) {
         console.error('Failed to initialize provider:', error)
@@ -138,13 +141,17 @@ const BroadcastPage = () => {
       
       // In a real implementation, you'd recover the signed transaction
       // For demo, we're just doing a sendTransaction
-      const response = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [tx],
-      })
-      
-      setTxHash(response)
-      setBroadcastStatus('success')
+      if (window.ethereum) {
+        const response = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [tx],
+        })
+        
+        setTxHash(response)
+        setBroadcastStatus('success')
+      } else {
+        throw new Error('MetaMask or compatible wallet not found. Cannot broadcast transaction.')
+      }
     } catch (error: any) {
       console.error('Transaction broadcast failed:', error)
       setErrorMessage(error.message)
@@ -237,4 +244,4 @@ const BroadcastPage = () => {
   )
 }
 
-export default BroadcastPage 
+export default BroadcastPage
