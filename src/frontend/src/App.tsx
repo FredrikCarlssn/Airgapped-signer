@@ -37,7 +37,7 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   
   // Broadcaster URL - in a real app, this would be configurable
-  const [broadcasterUrl, setBroadcasterUrl] = useState('https://broadcaster.example.com/');
+  const [broadcasterUrl, setBroadcasterUrl] = useState('https://fredrikcarlssn.github.io/Airgapped-signer/#/');
 
   // Check if MetaMask is available
   useEffect(() => {
@@ -277,7 +277,7 @@ function App() {
             name="broadcasterUrl"
             value={broadcasterUrl}
             onChange={handleBroadcasterUrlChange}
-            placeholder="https://broadcaster.example.com/"
+            placeholder="https://YOUR_GITHUB_USERNAME.github.io/Airgapped-signer/#/"
           />
           <small className="form-hint">URL of the online broadcaster service</small>
         </div>

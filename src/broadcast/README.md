@@ -56,12 +56,49 @@ npm run dev
 npm run build
 ```
 
+## Deployment to GitHub Pages
+
+This project is configured for easy deployment to GitHub Pages.
+
+### Setup
+
+1. Update the `homepage` field in `package.json` with your GitHub username:
+
+   ```json
+   "homepage": "https://YOUR_GITHUB_USERNAME.github.io/Airgapped-signer"
+   ```
+
+2. Make sure the `base` path in `vite.config.ts` matches your repository name:
+   ```ts
+   base: '/Airgapped-signer/',
+   ```
+
+### Manual Deployment
+
+Run the included deployment script:
+
+```bash
+cd src/broadcast
+./deploy.sh
+```
+
+### Automated Deployment
+
+This project includes a GitHub Actions workflow that automatically deploys to GitHub Pages when you push to the main branch.
+
+To enable this:
+
+1. Go to your GitHub repository settings
+2. Select "Pages" from the left menu
+3. In the "Build and deployment" section, select "GitHub Actions" as the source
+4. Push to your main branch, and the app will be automatically deployed
+
 ## Integration with Airgapped Signer
 
 The broadcaster is designed to work together with the Airgapped Transaction Signer. When the signer creates a transaction, it generates a QR code with a URL like:
 
 ```
-https://your-domain.com/{serialized-transaction-data}
+https://your-github-username.github.io/Airgapped-signer/#/{serialized-transaction-data}
 ```
 
 The broadcaster parses this data and provides a user interface for broadcasting the transaction.
