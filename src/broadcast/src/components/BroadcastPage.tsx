@@ -78,15 +78,8 @@ const BroadcastPage = () => {
   useEffect(() => {
     const initProvider = async () => {
       try {
-        // Check if window.ethereum exists (MetaMask or other wallet)
-        if (window.ethereum) {
-          const browserProvider = new ethers.BrowserProvider(window.ethereum)
-          setProvider(browserProvider)
-        } else {
-          // Fallback to a public provider
-          const jsonRpcProvider = new ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/demo')
-          setProvider(jsonRpcProvider)
-        }
+          const jsonRpcProvider = new ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/1MzR_wTi7SDvz0ylPl_sCtxaWBC-DAv4')
+          setProvider(jsonRpcProvider) 
       } catch (error) {
         console.error('Failed to initialize provider:', error)
       }
