@@ -21,26 +21,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: "npm"
-          cache-dependency-path: src/broadcast/package-lock.json
+          cache: "pnpm"
+          cache-dependency-path: src/broadcast/pnpm-lock.yaml
 
       - name: Install Dependencies
-        run: cd src/broadcast && npm ci
+        run: cd src/broadcast && pnpm install
 
       - name: Build
-        run: cd src/broadcast && npm run build
+        run: cd src/broadcast && pnpm run build
 
       - name: Setup Pages
-        uses: actions/configure-pages@v3
+        uses: actions/configure-pages@v4
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           path: "./src/broadcast/dist"
 
@@ -53,4 +58,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4

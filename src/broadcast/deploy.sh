@@ -4,17 +4,26 @@
 
 echo "Building and deploying the transaction broadcaster to GitHub Pages..."
 
-# Install dependencies if needed
-pnpm install
+# Detect package manager
+if command -v pnpm &> /dev/null; then
+    echo "✅ Using pnpm for deployment (recommended)"
+    # Install dependencies if needed
+    pnpm install
+    
+    # Build and deploy
+    pnpm run deploy
+else
+    echo "⚠️ pnpm not found, falling back to npm"
+    echo "For best results, consider installing pnpm: https://pnpm.io/installation"
+    # Install dependencies if needed
+    npm install
+    
+    # Build and deploy
+    npm run deploy
+fi
 
-# Build and deploy
-npm run deploy
-
-echo "Deployment complete! Your application should be available at:"
-echo "https://YOUR_GITHUB_USERNAME.github.io/Airgapped-signer/"
 echo ""
-echo "Remember to replace 'YOUR_GITHUB_USERNAME' with your actual GitHub username in:"
-echo "1. package.json (homepage field)"
-echo "2. This deploy script output"
+echo "✨ Deployment complete! Your application should be available at:"
+echo "📱 https://fredrikcarlssn.github.io/Airgapped-signer/"
 echo ""
 echo "Note: It may take a few minutes for changes to appear on GitHub Pages." 
