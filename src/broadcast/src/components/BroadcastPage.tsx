@@ -17,7 +17,7 @@ interface TransactionObject {
 
 interface SignedTransactionData {
   transaction: TransactionObject
-  signature: string
+  signature: string  // This should be a serialized signed transaction (hex string)
 }
 
 // Broadcast status types
@@ -115,35 +115,21 @@ const BroadcastPage = () => {
         throw new Error('Invalid signature')
       }
       
-      // Prepare transaction for broadcast
-      const tx = {
-        to: transactionData.transaction.to,
-        value: BigInt(transactionData.transaction.value),
-        gasLimit: BigInt(transactionData.transaction.gasLimit),
-        data: transactionData.transaction.data,
-        chainId: transactionData.transaction.chainId,
-      } as any
-      
-      // Add EIP-1559 parameters if they exist
-      if (transactionData.transaction.maxFeePerGas) {
-        tx.maxFeePerGas = BigInt(transactionData.transaction.maxFeePerGas)
-      }
-      if (transactionData.transaction.maxPriorityFeePerGas) {
-        tx.maxPriorityFeePerGas = BigInt(transactionData.transaction.maxPriorityFeePerGas)
-      }
-      
-      // In a real implementation, you'd recover the signed transaction
-      // For demo, we're just doing a sendTransaction
-      if (window.ethereum) {
-        const response = await window.ethereum.request({
-          method: 'eth_sendTransaction',
-          params: [tx],
-        })
+      try {
+        // The signature should already be a serialized signed transaction
+        // Just broadcast it directly
+        const rawTransaction = transactionData.signature;
         
-        setTxHash(response)
+        // Make sure it starts with 0x
+        const prefixedRawTx = rawTransaction.startsWith('0x') ? rawTransaction : `0x${rawTransaction}`;
+        
+        // Broadcast the transaction
+        const txResponse = await provider.broadcastTransaction(prefixedRawTx);
+        
+        setTxHash(txResponse.hash)
         setBroadcastStatus('success')
-      } else {
-        throw new Error('MetaMask or compatible wallet not found. Cannot broadcast transaction.')
+      } catch (error: any) {
+        throw new Error(`Failed to broadcast transaction: ${error.message}`);
       }
     } catch (error: any) {
       console.error('Transaction broadcast failed:', error)
