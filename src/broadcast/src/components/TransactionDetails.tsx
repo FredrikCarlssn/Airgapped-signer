@@ -9,13 +9,16 @@ interface TransactionObject {
   data: string
   maxFeePerGas?: string
   maxPriorityFeePerGas?: string
+  gasPrice?: string
 }
 
 interface TransactionDetailsProps {
   transaction: TransactionObject
+  signature?: string
+  hash?: string
 }
 
-const TransactionDetails = ({ transaction }: TransactionDetailsProps) => {
+const TransactionDetails = ({ transaction, signature, hash }: TransactionDetailsProps) => {
   // Format value in ETH
   const formatValue = () => {
     try {
@@ -44,6 +47,15 @@ const TransactionDetails = ({ transaction }: TransactionDetailsProps) => {
     }
     
     return networks[chainId] || `Chain ID: ${chainId}`
+  }
+
+  // Format a hash or signature for display (truncate in the middle)
+  const formatHash = (hash: string) => {
+    if (!hash) return '';
+    
+    const prefix = hash.slice(0, 10);
+    const suffix = hash.slice(-8);
+    return `${prefix}...${suffix}`;
   }
 
   return (
@@ -89,6 +101,24 @@ const TransactionDetails = ({ transaction }: TransactionDetailsProps) => {
           <span className="detail-label">Max Priority Fee Per Gas:</span>
           <div className="detail-value">
             {ethers.formatUnits(BigInt(transaction.maxPriorityFeePerGas), 'gwei')} Gwei
+          </div>
+        </div>
+      )}
+      
+      {hash && (
+        <div className="detail-group">
+          <span className="detail-label">Transaction Hash:</span>
+          <div className="detail-value hash-value">
+            <span title={hash}>{formatHash(hash)}</span>
+          </div>
+        </div>
+      )}
+      
+      {signature && (
+        <div className="detail-group">
+          <span className="detail-label">Signature:</span>
+          <div className="detail-value hash-value">
+            <span title={signature}>{formatHash(signature)}</span>
           </div>
         </div>
       )}

@@ -15,6 +15,7 @@ interface TransactionObject {
   data: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
+  nonce: number;
 }
 
 function App() {
@@ -26,7 +27,8 @@ function App() {
     maxFeePerGas: '',
     maxPriorityFeePerGas: '',
     data: '',
-    chainId: '1', // Default to Ethereum mainnet
+    chainId: '11155111', // Default to Ethereum sepolia
+    nonce: '',
   });
 
   // State for wallet connection and transaction
@@ -39,9 +41,9 @@ function App() {
   // Broadcaster URL - in a real app, this would be configurable
   const [broadcasterUrl, setBroadcasterUrl] = useState('https://fredrikcarlssn.github.io/Airgapped-signer/#/');
 
-  // Check if MetaMask is available
+  // Check if wallet is available
   useEffect(() => {
-    const checkMetaMask = async () => {
+    const checkWallet = async () => {
       if (window.ethereum) {
         try {
           // We don't connect automatically - we'll wait for user to click connect
@@ -52,11 +54,11 @@ function App() {
           setErrorMessage("Failed to initialize provider");
         }
       } else {
-        setErrorMessage("MetaMask is not installed. Please install MetaMask to use this application.");
+        setErrorMessage("Browser wallet is not installed. Please install a Browser wallet to use this application.");
       }
     };
 
-    checkMetaMask();
+    checkWallet();
   }, []);
 
   // Connect wallet
@@ -69,10 +71,10 @@ function App() {
       const accounts = await window.ethereum!.request({ method: 'eth_requestAccounts' });
       setAccount(accounts[0]);
       setWalletConnected(true);
-
-      // Get chain ID to update the default
-      const network = await provider.getNetwork();
-      setTxParams(prev => ({ ...prev, chainId: network.chainId.toString() }));
+          await window.ethereum!.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xAA36A7' }],
+          });
 
       // Clear any previous errors
       setErrorMessage('');
@@ -100,44 +102,134 @@ function App() {
         throw new Error("Connect your wallet first");
       }
 
-      // Create a transaction object
-      const txObject: TransactionObject = {
-        from: account,
-        to: txParams.to,
-        value: ethers.parseEther(txParams.value || '0').toString(),
-        gasLimit: BigInt(txParams.gasLimit || '21000').toString(),
-        chainId: parseInt(txParams.chainId),
-        data: txParams.data || '0x',
-      };
-      
-      // Add gas pricing based on EIP-1559
-      if (txParams.maxFeePerGas && txParams.maxPriorityFeePerGas) {
-        txObject.maxFeePerGas = ethers.parseUnits(txParams.maxFeePerGas, 'gwei').toString();
-        txObject.maxPriorityFeePerGas = ethers.parseUnits(txParams.maxPriorityFeePerGas, 'gwei').toString();
+      if (!txParams.nonce) {
+        throw new Error("Please enter a nonce value");
       }
 
-      // Serialize the transaction to JSON
-      const txJson = JSON.stringify(txObject);
+      // Create a transaction object using toBeHex
+      const tx = {
+        nonce: ethers.toBeHex(parseInt(txParams.nonce)),
+        gasLimit: ethers.toBeHex(BigInt(txParams.gasLimit || '21000')),
+        to: txParams.to,
+        value: ethers.toBeHex(ethers.parseEther(txParams.value || '0')),
+        chainId: parseInt(txParams.chainId),
+        data: txParams.data || '0x',
+      } as any;
       
-      // Sign the transaction details as a message
+      // Handle gas pricing - use gasPrice if maxFeePerGas is not provided
+      if (txParams.maxFeePerGas && txParams.maxPriorityFeePerGas) {
+        tx.maxFeePerGas = ethers.toBeHex(ethers.parseUnits(txParams.maxFeePerGas, 'gwei'));
+        tx.maxPriorityFeePerGas = ethers.toBeHex(ethers.parseUnits(txParams.maxPriorityFeePerGas, 'gwei'));
+      } else {
+        // Default gasPrice if EIP-1559 params are not provided
+        tx.gasPrice = ethers.toBeHex(ethers.parseUnits('10', 'gwei'));
+      }
+
+      // RLP encode the transaction parameters
+      const serializedTx = ethers.encodeRlp([
+        tx.nonce, 
+        tx.gasPrice || '0x', 
+        tx.gasLimit, 
+        tx.to, 
+        tx.value, 
+        tx.data || '0x',
+        // For EIP-155 replay protection
+        ethers.toBeHex(tx.chainId),
+        '0x',
+        '0x'
+      ]);
+
+      // Hash the serialized transaction
+      const txHash = ethers.keccak256(serializedTx);
+
+      // Create an EIP-712 typed data structure for the transaction
+      const typedData = {
+        types: {
+          EIP712Domain: [
+            { name: 'name', type: 'string' },
+            { name: 'version', type: 'string' },
+            { name: 'chainId', type: 'uint256' },
+          ],
+          Transaction: [
+            { name: 'nonce', type: 'uint256' },
+            { name: 'gasLimit', type: 'uint256' },
+            { name: 'to', type: 'address' },
+            { name: 'value', type: 'uint256' },
+            { name: 'data', type: 'bytes' },
+            { name: 'chainId', type: 'uint256' },
+          ]
+        },
+        primaryType: 'Transaction',
+        domain: {
+          name: 'Airgapped Signer',
+          version: '1',
+          chainId: parseInt(txParams.chainId),
+        },
+        message: {
+          nonce: parseInt(txParams.nonce),
+          gasLimit: BigInt(txParams.gasLimit || '21000'),
+          to: txParams.to,
+          value: ethers.parseEther(txParams.value || '0'),
+          data: txParams.data || '0x',
+          chainId: parseInt(txParams.chainId),
+        } as any // Using any to allow dynamic property addition
+      };
+
+      // Add gas pricing to the typed data message if needed
+      if (tx.gasPrice) {
+        typedData.types.Transaction.push({ name: 'gasPrice', type: 'uint256' });
+        typedData.message.gasPrice = ethers.parseUnits('10', 'gwei');
+      } else if (tx.maxFeePerGas && tx.maxPriorityFeePerGas) {
+        typedData.types.Transaction.push({ name: 'maxFeePerGas', type: 'uint256' });
+        typedData.types.Transaction.push({ name: 'maxPriorityFeePerGas', type: 'uint256' });
+        typedData.message.maxFeePerGas = ethers.parseUnits(txParams.maxFeePerGas!, 'gwei');
+        typedData.message.maxPriorityFeePerGas = ethers.parseUnits(txParams.maxPriorityFeePerGas!, 'gwei');
+      }
+
+      // Convert BigInt values in the typed data to strings to make them JSON-serializable
+      const typedDataForJson = {
+        ...typedData,
+        message: {
+          ...typedData.message,
+          // Convert all potential BigInt values to strings
+          gasLimit: typedData.message.gasLimit.toString(),
+          value: typedData.message.value.toString(),
+        }
+      };
+      
+      // If there are gas price values, convert them to strings too
+      if ('gasPrice' in typedData.message) {
+        typedDataForJson.message.gasPrice = typedData.message.gasPrice.toString();
+      }
+      if ('maxFeePerGas' in typedData.message) {
+        typedDataForJson.message.maxFeePerGas = typedData.message.maxFeePerGas.toString();
+      }
+      if ('maxPriorityFeePerGas' in typedData.message) {
+        typedDataForJson.message.maxPriorityFeePerGas = typedData.message.maxPriorityFeePerGas.toString();
+      }
+      
+      // Request signature using eth_signTypedData_v4
       const signature = await window.ethereum!.request({
-        method: 'personal_sign',
-        params: [txJson, account]
+        method: "eth_signTypedData_v4",
+        params: [account, JSON.stringify(typedDataForJson)]
       });
       
-      // Create the complete signed transaction object that includes both 
-      // the transaction details and the signature
+      // tx is already using toBeHex for all values, which makes it serializable
+      // but double-check there are no BigInt values left in the transaction object
+      
+      // Create the complete signed transaction object with serializable values
       const completeSignedTx = JSON.stringify({
-        transaction: txObject,
-        signature: signature
+        transaction: tx,
+        serializedTransaction: serializedTx,
+        signature: signature,
+        hash: txHash
       });
       
       // Create a URL with the transaction data
       const encodedTxData = encodeURIComponent(completeSignedTx);
       const qrCodeData = `${broadcasterUrl}${encodedTxData}`;
       
-      // Set the serialized signed transaction with all the necessary information 
-      // for the online device to reconstruct and broadcast it
+      // Set the serialized signed transaction
       setSerializedSignedTx(qrCodeData);
       setErrorMessage('');
     } catch (error: any) {
@@ -155,7 +247,8 @@ function App() {
       maxFeePerGas: '',
       maxPriorityFeePerGas: '',
       data: '',
-      chainId: '1',
+      chainId: '11155111',
+      nonce: '',
     });
     setSerializedSignedTx('');
     setErrorMessage('');
@@ -264,9 +357,23 @@ function App() {
             type="text"
             id="chainId"
             name="chainId"
+            disabled
             value={txParams.chainId}
             onChange={handleInputChange}
           />
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="nonce">Nonce:</label>
+          <input
+            type="text"
+            id="nonce"
+            name="nonce"
+            value={txParams.nonce}
+            onChange={handleInputChange}
+            placeholder="Transaction count (nonce)"
+          />
+          <small className="form-hint">Enter the account's current transaction count (nonce)</small>
         </div>
         
         <div className="form-group">
