@@ -3,7 +3,7 @@ import './App.css';
 import QRCode from 'qrcode.react';
 import { ethers } from 'ethers';
 import ChainSelector from './components/ChainSelector';
-import { MINIMAL_CHAINS } from './types/chain';
+import { MINIMAL_CHAINS } from '@shared/types/chains';
 
 // @DEV: This is a development version of the app.
 interface TransactionObject {
@@ -383,6 +383,11 @@ function App() {
           </div>
           <p className="qr-instructions">
             Scan this QR code with your online device to broadcast the transaction
+          </p>
+          <p className="qr-instructions">
+            <a href={serializedSignedTx} target="_blank" rel="noopener noreferrer">
+              Open in browser
+            </a>
           </p>
         </div>
       )}

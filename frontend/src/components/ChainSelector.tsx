@@ -1,4 +1,5 @@
-import { MINIMAL_CHAINS, MinimalChainInfo } from '../types/chain'
+import { MINIMAL_CHAINS } from '@shared/types/chains'
+import type { MinimalChainInfo } from '@shared/types/chains'
 
 interface ChainSelectorProps {
   selectedChainId: number
