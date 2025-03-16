@@ -71,10 +71,10 @@ const HomePage = () => {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="card mb-8 p-6 bg-white rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold mb-4">Transaction Broadcaster</h1>
-        <p className="mb-4">This service allows you to broadcast signed transactions created on an offline device.</p>
+    <div className="container">
+      <div className="card mb-8">
+        <h1>Transaction Broadcaster</h1>
+        <p>This service allows you to broadcast signed transactions created on an offline device.</p>
         
         <div className="bg-blue-50 p-4 rounded-lg">
           <h3 className="font-semibold mb-2">How to Use:</h3>
@@ -88,18 +88,20 @@ const HomePage = () => {
         </div>
       </div>
 
-      <h2 className="text-2xl font-bold mb-6">Blockchain Tools</h2>
-      
+      <h2 className="mb-6">Blockchain Tools</h2>
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
       {/* Chain Selector */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Select Chain</label>
+      <div className="select-container">
         <select
           value={selectedChain.name}
           onChange={(e) => {
             const chain = chains.find(c => c.name === e.target.value)
             if (chain) setSelectedChain(chain as any)
           }}
-          className="w-full p-2 border rounded"
         >
           {chains.map((chain: any) => (
             <option key={chain.id} value={chain.name}>
@@ -109,17 +111,17 @@ const HomePage = () => {
         </select>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid-container">
         {/* Nonce Checker */}
-        <div className="card p-6 bg-white rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">Check Address Nonce</h2>
+        <div className="card">
+          <h2>Check Address Nonce</h2>
           <div className="space-y-4">
             <input
               type="text"
               placeholder="Enter address (0x...)"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              className="w-full p-2 border rounded"
+              className="w-full p-2 mr-8 border rounded"
             />
             <button
               onClick={checkNonce}
@@ -129,7 +131,7 @@ const HomePage = () => {
               {loading ? 'Checking...' : 'Check Nonce'}
             </button>
             {nonce !== null && (
-              <div className="mt-4 p-3 bg-gray-100 rounded">
+              <div className="result-container">
                 <p>Current Nonce: {nonce}</p>
                 <p className="text-sm text-gray-600">(Use this nonce for your next transaction)</p>
               </div>
@@ -138,8 +140,8 @@ const HomePage = () => {
         </div>
 
         {/* Gas Price Checker */}
-        <div className="card p-6 bg-white rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">Current Gas Prices on {selectedChain.name}</h2>
+        <div className="card">
+          <h2>Current Gas Prices on {selectedChain.name}</h2>
           <button
             onClick={checkGasPrices}
             disabled={loading}
@@ -148,7 +150,7 @@ const HomePage = () => {
             {loading ? 'Fetching...' : 'Check Gas Prices'}
           </button>
           {gasData && (
-            <div className="mt-4 p-3 bg-gray-100 rounded space-y-2">
+            <div className="result-container space-y-2">
               <p>Base Fee: {gasData.baseFee} Gwei</p>
               <p>Priority Fee (Tip): {gasData.priorityFee} Gwei</p>
               <p>Total Fee: {gasData.totalFee} Gwei</p>
@@ -157,12 +159,6 @@ const HomePage = () => {
           )}
         </div>
       </div>
-
-      {error && (
-        <div className="mt-4 p-3 bg-red-100 text-red-700 rounded">
-          {error}
-        </div>
-      )}
 
       <div className="mt-6">
         <Link to="/demo">

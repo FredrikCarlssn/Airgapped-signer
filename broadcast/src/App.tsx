@@ -10,7 +10,7 @@ function App() {
         <Route path="/:txData" element={<BroadcastPage />} />
       </Routes>
       <footer className="footer">
-        <p>Airgapped Transaction Broadcaster - Secure Offline Signing Solution</p>
+        <p>Airgapped Transaction Broadcaster - Secure Offline Signing</p>
       </footer>
     </div>
   )

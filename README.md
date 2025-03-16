@@ -4,29 +4,30 @@ This application allows you to create and sign Ethereum transactions on an offli
 
 ## Features
 
-- Create transactions with full parameter control
-- Connect to browser wallets like MetaMask for signing
-- Generate QR codes with serialized signed transactions
-- Completely offline operation - no internet required after initial setup
+- Create and sign transactions offline using a keystore wallet
+- Full control over all transaction parameters (recipient, value, gas, nonce, etc.)
+- EIP-1559 transaction support
+- QR code generation for signed transactions
+- Air-gapped operation for maximum security
 
 ## Security Benefits
 
-- Private keys never leave your wallet
-- Signing device remains completely offline
-- Air-gapped architecture protects against remote attacks
+- Private keys never leave your offline device
+- Complete isolation from network-based attacks
+- Physical separation between signing and broadcasting
 - Transaction details are verified before signing
 
 ## Prerequisites
 
-- A modern web browser with MetaMask or similar Ethereum wallet extension
+- A modern web browser
 - Node.js and npm installed (for development)
+- An Ethereum keystore file (.json)
 
 ## Setup Instructions
 
 1. Clone this repository
 2. Install dependencies:
    ```
-   cd src/frontend
    npm install
    ```
 3. Build the application:
@@ -43,26 +44,26 @@ For maximum security, set up as follows:
 2. Copy the build directory to an offline device using a USB drive
 3. Serve the application on the offline device using a local server
 
-## Usage Instructions
+## Transaction Creation Process
 
-1. Open the application on your offline device
-2. Connect your MetaMask wallet
-3. Enter transaction details:
-   - Recipient address
-   - Amount in ETH
-   - Gas parameters
-   - Additional data (for contract interactions)
-   - Chain ID
-4. Click "Create & Sign Transaction"
-5. Scan the generated QR code with your online device
-6. Broadcast the transaction from your online device
+1. **Prepare your offline device**: Set up the signer application on an air-gapped device that never connects to the internet
+2. **Load your keystore wallet**: Upload your Ethereum keystore file and enter your password
+3. **Create a transaction**:
+   - Select the target blockchain network
+   - Enter the recipient address
+   - Specify the amount to send in ETH
+   - Set the nonce value
+   - Configure gas parameters (gas limit, max fee, priority fee)
+   - Add transaction data if needed (for contract interactions)
+4. **Sign the transaction**: Click "Sign Transaction" to create a signed transaction
+5. **Generate QR code**: The signed transaction is encoded as a QR code
+6. **Broadcast the transaction**: Scan the QR code with the companion broadcasting app on an online device to send the transaction to the network
 
 ## Development
 
 For development purposes, you can run the application locally:
 
 ```
-cd src/frontend
 npm start
 ```
 
@@ -71,7 +72,7 @@ npm start
 - Always verify transaction details before signing
 - Use a dedicated offline device whenever possible
 - Keep your wallet software and firmware updated
-- Consider using a hardware wallet for additional security
+- Never connect your signing device to the internet
 
 ## License
 

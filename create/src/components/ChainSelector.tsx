@@ -14,14 +14,11 @@ export const ChainSelector = ({ selectedChainId, onChange, className = '' }: Cha
   }
 
   return (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Select Network
-      </label>
+    <div className={`select-container ${className}`}>
+      <label>Select Network</label>
       <select
         value={selectedChainId}
         onChange={handleChange}
-        className="w-full p-2 border rounded bg-white"
       >
         {MINIMAL_CHAINS.map((chain: MinimalChainInfo) => (
           <option key={chain.id} value={chain.id}>

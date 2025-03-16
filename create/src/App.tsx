@@ -1,6 +1,6 @@
 import { useState, ChangeEvent } from 'react';
 import './App.css';
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 import { ethers } from 'ethers';
 import ChainSelector from './components/ChainSelector';
 import { MINIMAL_CHAINS } from '@shared/types/chains';
@@ -203,8 +203,7 @@ function App() {
 
   return (
     <div className="app-container">
-      <h1>Offline Transaction Signer</h1>
-      
+      <h1>Airgapped Transaction Signer</h1>
       {errorMessage && (
         <div className="error-message">
           {errorMessage}
@@ -285,6 +284,7 @@ function App() {
         
         <div className="form-group">
           <label htmlFor="nonce">Nonce:</label>
+          <p>You can find a helper tool on the transaction broadcaster page</p>
           <input
             type="text"
             id="nonce"
@@ -347,6 +347,7 @@ function App() {
           <input
             type="text"
             id="broadcasterUrl"
+            disabled
             value={broadcasterUrl}
             onChange={handleBroadcasterUrlChange}
             placeholder="Enter broadcaster URL"
@@ -375,7 +376,7 @@ function App() {
         <div className="qr-section">
           <h2>Signed Transaction QR Code</h2>
           <div className="qr-container">
-            <QRCode 
+            <QRCodeSVG 
               value={serializedSignedTx}
               size={256}
               level="H"

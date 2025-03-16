@@ -159,7 +159,7 @@ const BroadcastPage = () => {
         return (
           <div className="status error">
             <h3>Transaction Broadcast Failed</h3>
-            <p>{errorMessage || 'There was an error broadcasting your transaction. Please try again.'}</p>
+            <p style={{ wordBreak: 'break-word' }}>{errorMessage || 'There was an error broadcasting your transaction. Please try again.'}</p>
           </div>
         )
       default:
@@ -174,21 +174,48 @@ const BroadcastPage = () => {
       {errorMessage && broadcastStatus === 'idle' && (
         <div className="status error">
           <h3>Error</h3>
-          <p>{errorMessage}</p>
+          <p style={{ wordBreak: 'break-word' }}>{errorMessage}</p>
           <Link to="/">
             <button className="btn btn-primary">Return Home</button>
           </Link>
         </div>
       )}
       
-      {!errorMessage && transactionData && (
+      {transactionData && (
         <>
           {renderStatusMessage()}
           
-          <TransactionDetails 
-            transaction={transactionData.transaction} 
-            hash={txHash || undefined}
-          />
+          <div className="raw-transaction-section">
+            <h3>Raw Transaction</h3>
+            <div className="raw-tx-container">
+              <code className="raw-tx" style={{ 
+                display: 'block',
+                wordBreak: 'break-all',
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'break-word',
+                maxWidth: '100%'
+              }}>
+                {transactionData.serializedTransaction}
+              </code>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  navigator.clipboard.writeText(transactionData.serializedTransaction);
+                  alert('Raw transaction copied to clipboard!');
+                }}
+                style={{ marginTop: '0.5rem' }}
+              >
+                Copy Raw Transaction
+              </button>
+            </div>
+          </div>
+
+          {broadcastStatus !== 'error' && (
+            <TransactionDetails 
+              transaction={transactionData.transaction} 
+              hash={txHash || undefined}
+            />
+          )}
           
           {broadcastStatus === 'idle' && (
             <button 
