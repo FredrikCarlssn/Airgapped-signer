@@ -77,11 +77,11 @@ const BroadcastPage = () => {
         }
 
         const newClient = createPublicClient({
-          chain: chain,
+          chain: chain as any,
           transport: http()
         })
 
-        setClient(newClient)
+        setClient(newClient as any)
       } catch (error: any) {
         console.error('Failed to initialize client:', error)
         setErrorMessage(`Failed to initialize client: ${error.message}`)

@@ -1,8 +1,5 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { 
-  Chain,
-} from 'viem/chains'
 import { createPublicClient, http, formatGwei, parseGwei } from 'viem'
 import { SUPPORTED_CHAINS } from '../types/transaction'
 
@@ -11,7 +8,7 @@ const chains = SUPPORTED_CHAINS
 
 const HomePage = () => {
   const [address, setAddress] = useState('')
-  const [selectedChain, setSelectedChain] = useState<Chain>(chains[0])
+  const [selectedChain, setSelectedChain] = useState<any>(chains[0])
   const [nonce, setNonce] = useState<number | null>(null)
   const [gasData, setGasData] = useState<{
     baseFee: string;
@@ -22,9 +19,9 @@ const HomePage = () => {
   const [error, setError] = useState('')
 
   // Create a public client for the selected chain
-  const getPublicClient = (chain: Chain) => {
+  const getPublicClient = (chain: any) => {
     return createPublicClient({
-      chain,
+      chain: chain as any,
       transport: http()
     })
   }
@@ -100,11 +97,11 @@ const HomePage = () => {
           value={selectedChain.name}
           onChange={(e) => {
             const chain = chains.find(c => c.name === e.target.value)
-            if (chain) setSelectedChain(chain)
+            if (chain) setSelectedChain(chain as any)
           }}
           className="w-full p-2 border rounded"
         >
-          {chains.map(chain => (
+          {chains.map((chain: any) => (
             <option key={chain.id} value={chain.name}>
               {chain.name}
             </option>
