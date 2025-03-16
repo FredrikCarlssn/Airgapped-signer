@@ -77,7 +77,7 @@ const BroadcastPage = () => {
         }
 
         const newClient = createPublicClient({
-          chain,
+          chain: chain,
           transport: http()
         })
 
