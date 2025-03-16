@@ -28,9 +28,14 @@ jobs:
         with:
           node-version: "18"
           cache: "npm"
-          cache-dependency-path: broadcast/package-lock.json
+          cache-dependency-path: |
+            broadcast/package-lock.json
+            shared/package-lock.json
 
-      - name: Install Dependencies
+      - name: Install Dependencies for shared
+        run: cd shared && npm install
+
+      - name: Install Dependencies for broadcast
         run: cd broadcast && npm install
 
       - name: Build
