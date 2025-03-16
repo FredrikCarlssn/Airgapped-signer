@@ -1,32 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ethers } from 'ethers'
+import { 
+  createPublicClient, 
+  http,
+  parseEther,
+  PublicClient,
+} from 'viem'
+import { 
+  SignedTransactionData,
+  BroadcastStatus,
+  getChainById,
+  getChainExplorerUrl
+} from '../types/transaction'
 import TransactionDetails from './TransactionDetails'
-
-// Define types for our transaction data
-interface TransactionObject {
-  from: string
-  to: string
-  value: string
-  gasLimit: string
-  chainId: string
-  data: string
-  nonce: string
-  maxFeePerGas?: string
-  maxPriorityFeePerGas?: string
-  gasPrice?: string
-}
-
-interface SignedTransactionData {
-  transaction: TransactionObject
-  serializedTransaction: string
-}
-
-// Broadcast status types
-type BroadcastStatus = 'idle' | 'pending' | 'success' | 'error'
-
-// Define a union type for provider
-type Provider = ethers.BrowserProvider | ethers.JsonRpcProvider
 
 const BroadcastPage = () => {
   const { txData } = useParams<{ txData: string }>()
@@ -34,7 +20,7 @@ const BroadcastPage = () => {
   const [broadcastStatus, setBroadcastStatus] = useState<BroadcastStatus>('idle')
   const [txHash, setTxHash] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [provider, setProvider] = useState<Provider | null>(null)
+  const [client, setClient] = useState<PublicClient | null>(null)
 
   // Parse transaction data from URL
   useEffect(() => {
@@ -48,9 +34,9 @@ const BroadcastPage = () => {
             transaction: {
               from: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
               to: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-              value: ethers.parseEther('0.1').toString(),
+              value: parseEther('0.1').toString(),
               gasLimit: '21000',
-              chainId: '11155111',
+              chainId: '11155111', // Sepolia
               data: '0x',
               nonce: '0',
             },
@@ -77,47 +63,60 @@ const BroadcastPage = () => {
     parseTransactionData()
   }, [txData])
   
-  // Initialize Ethereum provider
+  // Initialize client when transaction data is available
   useEffect(() => {
-    const initProvider = async () => {
+    const initClient = () => {
+      if (!transactionData) return
+
       try {
-          const jsonRpcProvider = new ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/1MzR_wTi7SDvz0ylPl_sCtxaWBC-DAv4')
-          setProvider(jsonRpcProvider) 
-      } catch (error) {
-        console.error('Failed to initialize provider:', error)
+        const chainId = parseInt(transactionData.transaction.chainId)
+        const chain = getChainById(chainId)
+        
+        if (!chain) {
+          throw new Error(`Unsupported chain ID: ${chainId}`)
+        }
+
+        const newClient = createPublicClient({
+          chain,
+          transport: http()
+        })
+
+        setClient(newClient)
+      } catch (error: any) {
+        console.error('Failed to initialize client:', error)
+        setErrorMessage(`Failed to initialize client: ${error.message}`)
       }
     }
     
-    initProvider()
-  }, [])
+    initClient()
+  }, [transactionData])
   
   // Broadcast the transaction
   const broadcastTransaction = async () => {
-    if (!transactionData || !provider) return
+    if (!transactionData || !client) return
     
     setBroadcastStatus('pending')
+    setErrorMessage(null)
     
     try {
-      try {
-        // Get the serialized transaction from Phantom's eth_signTransaction
-        const serializedTx = transactionData.serializedTransaction
-        
-        // Make sure it starts with 0x
-        const prefixedTx = serializedTx.startsWith('0x') ? serializedTx : `0x${serializedTx}`
-        
-        console.log("Broadcasting serialized transaction:", prefixedTx)
-        
-        // Send the transaction to the network directly using broadcastTransaction
-        const tx = await provider.broadcastTransaction(prefixedTx)
-        
-        setTxHash(tx.hash)
-        setBroadcastStatus('success')
-      } catch (error: any) {
-        throw new Error(`Failed to broadcast transaction: ${error.message}`)
-      }
+      // Get the serialized transaction
+      const serializedTx = transactionData.serializedTransaction
+      
+      // Make sure it starts with 0x
+      const prefixedTx = serializedTx.startsWith('0x') ? serializedTx : `0x${serializedTx}`
+      
+      console.log("Broadcasting serialized transaction:", prefixedTx)
+      
+      // Send the transaction to the network
+      const hash = await client.sendRawTransaction({
+        serializedTransaction: prefixedTx as `0x${string}`
+      })
+      
+      setTxHash(hash)
+      setBroadcastStatus('success')
     } catch (error: any) {
       console.error('Transaction broadcast failed:', error)
-      setErrorMessage(error.message)
+      setErrorMessage(`Failed to broadcast transaction: ${error.message}`)
       setBroadcastStatus('error')
     }
   }
@@ -129,27 +128,29 @@ const BroadcastPage = () => {
         return (
           <div className="status pending">
             <h3>Broadcasting Transaction...</h3>
-            <p>Please wait while your transaction is being sent to the Ethereum network.</p>
+            <p>Please wait while your transaction is being sent to the network.</p>
           </div>
         )
       case 'success':
         return (
           <div className="status success">
             <h3>Transaction Broadcast Successful!</h3>
-            <p>Your transaction has been successfully broadcast to the Ethereum network.</p>
-            {txHash && (
+            <p>Your transaction has been successfully broadcast to the network.</p>
+            {txHash && transactionData && (
               <p>
                 Transaction Hash: <span className="tx-hash">{txHash}</span>
                 <br />
-                <a 
-                  href={`https://etherscan.io/tx/${txHash}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="btn btn-primary"
-                  style={{ marginTop: '1rem' }}
-                >
-                  View on Etherscan
-                </a>
+                {getChainExplorerUrl(transactionData.transaction.chainId, txHash) && (
+                  <a 
+                    href={getChainExplorerUrl(transactionData.transaction.chainId, txHash)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary"
+                    style={{ marginTop: '1rem' }}
+                  >
+                    View on Block Explorer
+                  </a>
+                )}
               </p>
             )}
           </div>
@@ -193,7 +194,7 @@ const BroadcastPage = () => {
             <button 
               className="btn btn-primary" 
               onClick={broadcastTransaction}
-              disabled={!provider}
+              disabled={!client}
             >
               Broadcast Transaction
             </button>

@@ -4,7 +4,7 @@ import Safe, {
 } from '@safe-global/protocol-kit'
 import dotenv from 'dotenv';
 import readlineSync from 'readline-sync';
-import { readPrivateKeyFromKeystore } from '../keystore';
+import { readPrivateKeyFromKeystore } from './keystore';
 
 dotenv.config();
 

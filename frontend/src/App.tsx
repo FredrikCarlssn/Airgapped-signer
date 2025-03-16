@@ -2,6 +2,8 @@ import { useState, ChangeEvent } from 'react';
 import './App.css';
 import QRCode from 'qrcode.react';
 import { ethers } from 'ethers';
+import ChainSelector from './components/ChainSelector';
+import { MINIMAL_CHAINS } from './types/chain';
 
 // @DEV: This is a development version of the app.
 interface TransactionObject {
@@ -24,7 +26,7 @@ const INITIAL_TRANSACTION_OBJECT: TransactionObject = {
   maxFeePerGas: '',
   maxPriorityFeePerGas: '',
   data: '',
-  chainId: '11155111',
+  chainId: MINIMAL_CHAINS[0].id.toString(), // Default to first chain (usually Ethereum mainnet)
   nonce: '',
 }
 
@@ -48,6 +50,11 @@ function App() {
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setTxParams(prev => ({ ...prev, [name]: value }));
+  };
+  
+  // Handle chain selection
+  const handleChainChange = (chainId: number) => {
+    setTxParams(prev => ({ ...prev, chainId: chainId.toString() }));
   };
   
   // Handle broadcaster URL change
@@ -245,6 +252,13 @@ function App() {
       <div className="transaction-form">
         <h2>Create Transaction</h2>
         
+        {/* Chain Selector */}
+        <ChainSelector
+          selectedChainId={parseInt(txParams.chainId)}
+          onChange={handleChainChange}
+          className="form-group"
+        />
+        
         <div className="form-group">
           <label htmlFor="to">Recipient Address:</label>
           <input
@@ -258,7 +272,7 @@ function App() {
         </div>
         
         <div className="form-group">
-          <label htmlFor="value">Amount (ETH):</label>
+          <label htmlFor="value">Value (in ETH):</label>
           <input
             type="text"
             id="value"
@@ -270,6 +284,18 @@ function App() {
         </div>
         
         <div className="form-group">
+          <label htmlFor="nonce">Nonce:</label>
+          <input
+            type="text"
+            id="nonce"
+            name="nonce"
+            value={txParams.nonce}
+            onChange={handleInputChange}
+            placeholder="Enter nonce"
+          />
+        </div>
+        
+        <div className="form-group">
           <label htmlFor="gasLimit">Gas Limit:</label>
           <input
             type="text"
@@ -277,6 +303,7 @@ function App() {
             name="gasLimit"
             value={txParams.gasLimit}
             onChange={handleInputChange}
+            placeholder="21000"
           />
         </div>
         
@@ -288,19 +315,19 @@ function App() {
             name="maxFeePerGas"
             value={txParams.maxFeePerGas}
             onChange={handleInputChange}
-            placeholder="Optional"
+            placeholder="Optional - for EIP-1559 transactions"
           />
         </div>
         
         <div className="form-group">
-          <label htmlFor="maxPriorityFeePerGas">Max Priority Fee (Gwei):</label>
+          <label htmlFor="maxPriorityFeePerGas">Max Priority Fee Per Gas (Gwei):</label>
           <input
             type="text"
             id="maxPriorityFeePerGas"
             name="maxPriorityFeePerGas"
             value={txParams.maxPriorityFeePerGas}
             onChange={handleInputChange}
-            placeholder="Optional"
+            placeholder="Optional - for EIP-1559 transactions"
           />
         </div>
         
@@ -311,32 +338,8 @@ function App() {
             name="data"
             value={txParams.data}
             onChange={handleInputChange}
-            placeholder="0x (Optional)"
+            placeholder="0x (optional)"
           />
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="chainId">Chain ID:</label>
-          <input
-            type="text"
-            id="chainId"
-            name="chainId"
-            value={txParams.chainId}
-            onChange={handleInputChange}
-          />
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="nonce">Nonce:</label>
-          <input
-            type="text"
-            id="nonce"
-            name="nonce"
-            value={txParams.nonce}
-            onChange={handleInputChange}
-            placeholder="Transaction count (nonce)"
-          />
-          <small className="form-hint">Enter the account's current transaction count (nonce)</small>
         </div>
         
         <div className="form-group">
@@ -344,24 +347,24 @@ function App() {
           <input
             type="text"
             id="broadcasterUrl"
-            name="broadcasterUrl"
-            disabled
             value={broadcasterUrl}
             onChange={handleBroadcasterUrlChange}
-            placeholder="https://YOUR_GITHUB_USERNAME.github.io/Airgapped-signer/#/"
+            placeholder="Enter broadcaster URL"
           />
-          <small className="form-hint">URL of the online broadcaster service</small>
         </div>
         
-        <div className="form-actions">
+        <div className="button-group">
           <button 
-            onClick={createAndSignTransaction} 
-            disabled={!keystoreWallet || !txParams.to}
+            onClick={createAndSignTransaction}
+            disabled={!keystoreWallet}
             className="sign-button"
           >
-            Create & Sign Transaction
+            Sign Transaction
           </button>
-          <button onClick={resetForm} className="reset-button">
+          <button 
+            onClick={resetForm}
+            className="reset-button"
+          >
             Reset Form
           </button>
         </div>
@@ -369,24 +372,18 @@ function App() {
 
       {/* QR Code Display */}
       {serializedSignedTx && (
-        <div className="qr-code-section">
-          <h2>Scan this QR code with your online device</h2>
-          <div className="qr-code">
-            <QRCode value={serializedSignedTx} size={256} level="H" />
+        <div className="qr-section">
+          <h2>Signed Transaction QR Code</h2>
+          <div className="qr-container">
+            <QRCode 
+              value={serializedSignedTx}
+              size={256}
+              level="H"
+            />
           </div>
-          <div className="transaction-details">
-            <h3>Instructions:</h3>
-            <ol className="instructions-list">
-              <li>Scan this QR code with an online device</li>
-              <li>The online device will open a web page with your transaction details</li>
-              <li>Review the transaction details on the online device</li>
-              <li>Click "Broadcast Transaction" to send it to the blockchain</li>
-            </ol>
-            <h3>QR Code Data (URL):</h3>
-            <div className="serialized-tx">
-              {serializedSignedTx}
-            </div>
-          </div>
+          <p className="qr-instructions">
+            Scan this QR code with your online device to broadcast the transaction
+          </p>
         </div>
       )}
     </div>

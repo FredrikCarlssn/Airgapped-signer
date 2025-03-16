@@ -1,16 +1,11 @@
-import { ethers } from 'ethers'
-
-interface TransactionObject {
-  from: string
-  to: string
-  value: string
-  gasLimit: string
-  chainId: string
-  data: string
-  maxFeePerGas?: string
-  maxPriorityFeePerGas?: string
-  gasPrice?: string
-}
+import { formatEther, formatGwei } from 'viem'
+import { 
+  TransactionObject,
+  getChainNativeSymbol,
+  getChainName,
+  getChainExplorerUrl,
+  formatTransactionHash
+} from '../types/transaction'
 
 interface TransactionDetailsProps {
   transaction: TransactionObject
@@ -21,42 +16,10 @@ const TransactionDetails = ({ transaction, hash }: TransactionDetailsProps) => {
   // Format value in ETH
   const formatValue = () => {
     try {
-      // Convert value from Wei to ETH for display
-      return `${ethers.formatEther(BigInt(transaction.value))} ETH`
+      return `${formatEther(BigInt(transaction.value))} ${getChainNativeSymbol(transaction.chainId)}`
     } catch (error) {
       return `${transaction.value} (Unable to format)`
     }
-  }
-
-  // Get network name from chainId
-  const getNetworkName = (chainId: string) => {
-    const chainIdNum = parseInt(chainId)
-    const networks: Record<number, string> = {
-      1: 'Ethereum Mainnet',
-      3: 'Ropsten Testnet',
-      4: 'Rinkeby Testnet',
-      5: 'Goerli Testnet',
-      42: 'Kovan Testnet',
-      56: 'Binance Smart Chain',
-      137: 'Polygon Mainnet',
-      80001: 'Mumbai Testnet',
-      42161: 'Arbitrum One',
-      10: 'Optimism',
-      250: 'Fantom Opera',
-      43114: 'Avalanche C-Chain',
-      11155111: 'Sepolia Testnet'
-    }
-    
-    return networks[chainIdNum] || `Chain ID: ${chainId}`
-  }
-
-  // Format a hash for display (truncate in the middle)
-  const formatHash = (hash: string) => {
-    if (!hash) return '';
-    
-    const prefix = hash.slice(0, 10);
-    const suffix = hash.slice(-8);
-    return `${prefix}...${suffix}`;
   }
 
   return (
@@ -65,7 +28,7 @@ const TransactionDetails = ({ transaction, hash }: TransactionDetailsProps) => {
       
       <div className="detail-group">
         <span className="detail-label">Network:</span>
-        <div className="detail-value">{getNetworkName(transaction.chainId)}</div>
+        <div className="detail-value">{getChainName(transaction.chainId)}</div>
       </div>
       
       <div className="detail-group">
@@ -92,7 +55,7 @@ const TransactionDetails = ({ transaction, hash }: TransactionDetailsProps) => {
         <div className="detail-group">
           <span className="detail-label">Max Fee Per Gas:</span>
           <div className="detail-value">
-            {ethers.formatUnits(BigInt(transaction.maxFeePerGas), 'gwei')} Gwei
+            {formatGwei(BigInt(transaction.maxFeePerGas))} Gwei
           </div>
         </div>
       )}
@@ -101,7 +64,7 @@ const TransactionDetails = ({ transaction, hash }: TransactionDetailsProps) => {
         <div className="detail-group">
           <span className="detail-label">Max Priority Fee Per Gas:</span>
           <div className="detail-value">
-            {ethers.formatUnits(BigInt(transaction.maxPriorityFeePerGas), 'gwei')} Gwei
+            {formatGwei(BigInt(transaction.maxPriorityFeePerGas))} Gwei
           </div>
         </div>
       )}
@@ -110,7 +73,19 @@ const TransactionDetails = ({ transaction, hash }: TransactionDetailsProps) => {
         <div className="detail-group">
           <span className="detail-label">Transaction Hash:</span>
           <div className="detail-value hash-value">
-            <span title={hash}>{formatHash(hash)}</span>
+            <span title={hash}>
+              {formatTransactionHash(hash)}
+              {getChainExplorerUrl(transaction.chainId, hash) && (
+                <a 
+                  href={getChainExplorerUrl(transaction.chainId, hash)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 text-blue-500 hover:text-blue-700"
+                >
+                  View on Explorer
+                </a>
+              )}
+            </span>
           </div>
         </div>
       )}

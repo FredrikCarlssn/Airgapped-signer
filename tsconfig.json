@@ -9,6 +9,6 @@
       "outDir": "./dist",
       "rootDir": "./src"
     },
-    "include": ["src/**/*"],
+    "include": ["src/**/*", "shared", "frontend", "safeSDK"],
     "exclude": ["node_modules"]
   }
