@@ -5,7 +5,7 @@ interface TransactionObject {
   to: string
   value: string
   gasLimit: string
-  chainId: number
+  chainId: string
   data: string
   maxFeePerGas?: string
   maxPriorityFeePerGas?: string
@@ -14,11 +14,10 @@ interface TransactionObject {
 
 interface TransactionDetailsProps {
   transaction: TransactionObject
-  signature?: string
   hash?: string
 }
 
-const TransactionDetails = ({ transaction, signature, hash }: TransactionDetailsProps) => {
+const TransactionDetails = ({ transaction, hash }: TransactionDetailsProps) => {
   // Format value in ETH
   const formatValue = () => {
     try {
@@ -30,7 +29,8 @@ const TransactionDetails = ({ transaction, signature, hash }: TransactionDetails
   }
 
   // Get network name from chainId
-  const getNetworkName = (chainId: number) => {
+  const getNetworkName = (chainId: string) => {
+    const chainIdNum = parseInt(chainId)
     const networks: Record<number, string> = {
       1: 'Ethereum Mainnet',
       3: 'Ropsten Testnet',
@@ -44,12 +44,13 @@ const TransactionDetails = ({ transaction, signature, hash }: TransactionDetails
       10: 'Optimism',
       250: 'Fantom Opera',
       43114: 'Avalanche C-Chain',
+      11155111: 'Sepolia Testnet'
     }
     
-    return networks[chainId] || `Chain ID: ${chainId}`
+    return networks[chainIdNum] || `Chain ID: ${chainId}`
   }
 
-  // Format a hash or signature for display (truncate in the middle)
+  // Format a hash for display (truncate in the middle)
   const formatHash = (hash: string) => {
     if (!hash) return '';
     
@@ -110,15 +111,6 @@ const TransactionDetails = ({ transaction, signature, hash }: TransactionDetails
           <span className="detail-label">Transaction Hash:</span>
           <div className="detail-value hash-value">
             <span title={hash}>{formatHash(hash)}</span>
-          </div>
-        </div>
-      )}
-      
-      {signature && (
-        <div className="detail-group">
-          <span className="detail-label">Signature:</span>
-          <div className="detail-value hash-value">
-            <span title={signature}>{formatHash(signature)}</span>
           </div>
         </div>
       )}

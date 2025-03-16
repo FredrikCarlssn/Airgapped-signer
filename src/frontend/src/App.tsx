@@ -1,88 +1,48 @@
-import { useState, useEffect, ChangeEvent } from 'react';
+import { useState, ChangeEvent } from 'react';
 import './App.css';
-
-// Import necessary components and libraries
 import QRCode from 'qrcode.react';
 import { ethers } from 'ethers';
 
-// Define transaction object type
+// @DEV: This is a development version of the app.
 interface TransactionObject {
   from: string;
   to: string;
   value: string;
   gasLimit: string;
-  chainId: number;
+  chainId: string;
   data: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
-  nonce: number;
+  nonce: string;
+}
+
+const INITIAL_TRANSACTION_OBJECT: TransactionObject = {
+  from: '',
+  to: '',
+  value: '',
+  gasLimit: '21000',
+  maxFeePerGas: '',
+  maxPriorityFeePerGas: '',
+  data: '',
+  chainId: '11155111',
+  nonce: '',
 }
 
 function App() {
   // State for transaction parameters
-  const [txParams, setTxParams] = useState({
-    to: '',
-    value: '',
-    gasLimit: '21000',
-    maxFeePerGas: '',
-    maxPriorityFeePerGas: '',
-    data: '',
-    chainId: '11155111', // Default to Ethereum sepolia
-    nonce: '',
-  });
+  const [txParams, setTxParams] = useState<TransactionObject>(INITIAL_TRANSACTION_OBJECT);
 
   // State for wallet connection and transaction
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [account, setAccount] = useState('');
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [keystoreWallet, setKeystoreWallet] = useState<ethers.Wallet | ethers.HDNodeWallet | null>(null);
   const [serializedSignedTx, setSerializedSignedTx] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   
-  // Broadcaster URL - in a real app, this would be configurable
+  // Broadcaster URL
   const [broadcasterUrl, setBroadcasterUrl] = useState('https://fredrikcarlssn.github.io/Airgapped-signer/#/');
 
-  // Check if wallet is available
-  useEffect(() => {
-    const checkWallet = async () => {
-      if (window.ethereum) {
-        try {
-          // We don't connect automatically - we'll wait for user to click connect
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          setProvider(provider);
-        } catch (error: any) {
-          console.error("Error initializing provider:", error);
-          setErrorMessage("Failed to initialize provider");
-        }
-      } else {
-        setErrorMessage("Browser wallet is not installed. Please install a Browser wallet to use this application.");
-      }
-    };
-
-    checkWallet();
-  }, []);
-
-  // Connect wallet
-  const connectWallet = async () => {
-    try {
-      if (!provider) {
-        throw new Error("Provider not initialized");
-      }
-
-      const accounts = await window.ethereum!.request({ method: 'eth_requestAccounts' });
-      setAccount(accounts[0]);
-      setWalletConnected(true);
-          await window.ethereum!.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0xAA36A7' }],
-          });
-
-      // Clear any previous errors
-      setErrorMessage('');
-    } catch (error: any) {
-      console.error("Error connecting wallet:", error);
-      setErrorMessage("Failed to connect wallet: " + error.message);
-    }
-  };
+  // Keystore state
+  const [keystoreContent, setKeystoreContent] = useState<string | null>(null);
+  const [keystorePassword, setKeystorePassword] = useState('');
 
   // Handle input changes
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -95,163 +55,143 @@ function App() {
     setBroadcasterUrl(e.target.value);
   };
 
-  // Create and sign transaction
+  // Handle keystore file upload
+  const handleKeystoreFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        if (event.target && typeof event.target.result === 'string') {
+          setKeystoreContent(event.target.result);
+        }
+      };
+      
+      reader.readAsText(file);
+    }
+  };
+
+  // Handle keystore password change
+  const handleKeystorePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setKeystorePassword(e.target.value);
+  };
+
+  // Load wallet from keystore
+  const loadKeystoreWallet = async () => {
+    try {
+      if (!keystoreContent) {
+        throw new Error("Please upload a keystore file");
+      }
+      
+      if (!keystorePassword) {
+        throw new Error("Please enter the keystore password");
+      }
+      
+      // Decrypt keystore and create wallet
+      const wallet = await ethers.Wallet.fromEncryptedJson(keystoreContent, keystorePassword);
+      setKeystoreWallet(wallet);
+      setErrorMessage('');
+      
+    } catch (error: any) {
+      console.error("Error loading keystore:", error);
+      setErrorMessage("Failed to load keystore: " + error.message);
+    }
+  };
+
+  // Convert form state to TransactionObject
+  const createTransactionObjectFromForm = (): TransactionObject | null => {
+    if (!keystoreWallet || !txParams.nonce) {
+      return null;
+    }
+    
+    const txObject: TransactionObject = {
+      from: keystoreWallet.address,
+      to: txParams.to,
+      value: txParams.value || '0',
+      gasLimit: txParams.gasLimit || '21000',
+      chainId: txParams.chainId,
+      data: txParams.data || '0x',
+      nonce: txParams.nonce,
+    };
+    
+    // Add EIP-1559 parameters if provided
+    if (txParams.maxFeePerGas && txParams.maxPriorityFeePerGas) {
+      txObject.maxFeePerGas = txParams.maxFeePerGas;
+      txObject.maxPriorityFeePerGas = txParams.maxPriorityFeePerGas;
+    }
+    
+    return txObject;
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setTxParams(INITIAL_TRANSACTION_OBJECT);
+    setSerializedSignedTx('');
+    setErrorMessage('');
+  };
+
+  // Create and sign transaction with keystore wallet
   const createAndSignTransaction = async () => {
     try {
-      if (!walletConnected) {
-        throw new Error("Connect your wallet first");
+      if (!keystoreWallet) {
+        throw new Error("Load your keystore wallet first");
       }
 
       if (!txParams.nonce) {
         throw new Error("Please enter a nonce value");
       }
 
-      // Create a transaction object using toBeHex
-      const tx = {
-        nonce: ethers.toBeHex(parseInt(txParams.nonce)),
-        gasLimit: ethers.toBeHex(BigInt(txParams.gasLimit || '21000')),
-        to: txParams.to,
-        value: ethers.toBeHex(ethers.parseEther(txParams.value || '0')),
-        chainId: parseInt(txParams.chainId),
-        data: txParams.data || '0x',
-      } as any;
+      // Convert form state to TransactionObject
+      const txObject = createTransactionObjectFromForm();
+      
+      if (!txObject) {
+        throw new Error("Failed to create transaction object");
+      }
+
+      // Convert to ethers.TransactionRequest for signing
+      const tx: ethers.TransactionRequest = {
+        to: ethers.getAddress(txObject.to),
+        nonce: parseInt(txObject.nonce), 
+        chainId: parseInt(txObject.chainId),
+        data: txObject.data,
+        gasLimit: ethers.parseUnits(txObject.gasLimit, 0), // Convert to bigint
+        value: txObject.value ? ethers.parseEther(txObject.value) : 0n, // Parse value as ETH
+      };
       
       // Handle gas pricing - use gasPrice if maxFeePerGas is not provided
-      if (txParams.maxFeePerGas && txParams.maxPriorityFeePerGas) {
-        tx.maxFeePerGas = ethers.toBeHex(ethers.parseUnits(txParams.maxFeePerGas, 'gwei'));
-        tx.maxPriorityFeePerGas = ethers.toBeHex(ethers.parseUnits(txParams.maxPriorityFeePerGas, 'gwei'));
+      if (txObject.maxFeePerGas && txObject.maxPriorityFeePerGas) {
+        // Convert Gwei to Wei for EIP-1559 parameters
+        tx.maxFeePerGas = ethers.parseUnits(txObject.maxFeePerGas, 'gwei');
+        tx.maxPriorityFeePerGas = ethers.parseUnits(txObject.maxPriorityFeePerGas, 'gwei');
       } else {
         // Default gasPrice if EIP-1559 params are not provided
-        tx.gasPrice = ethers.toBeHex(ethers.parseUnits('10', 'gwei'));
+        tx.gasPrice = ethers.parseUnits('10', 'gwei');
       }
 
-      // RLP encode the transaction parameters
-      const serializedTx = ethers.encodeRlp([
-        tx.nonce, 
-        tx.gasPrice || '0x', 
-        tx.gasLimit, 
-        tx.to, 
-        tx.value, 
-        tx.data || '0x',
-        // For EIP-155 replay protection
-        ethers.toBeHex(tx.chainId),
-        '0x',
-        '0x'
-      ]);
-
-      // Hash the serialized transaction
-      const txHash = ethers.keccak256(serializedTx);
-
-      // Create an EIP-712 typed data structure for the transaction
-      const typedData = {
-        types: {
-          EIP712Domain: [
-            { name: 'name', type: 'string' },
-            { name: 'version', type: 'string' },
-            { name: 'chainId', type: 'uint256' },
-          ],
-          Transaction: [
-            { name: 'nonce', type: 'uint256' },
-            { name: 'gasLimit', type: 'uint256' },
-            { name: 'to', type: 'address' },
-            { name: 'value', type: 'uint256' },
-            { name: 'data', type: 'bytes' },
-            { name: 'chainId', type: 'uint256' },
-          ]
-        },
-        primaryType: 'Transaction',
-        domain: {
-          name: 'Airgapped Signer',
-          version: '1',
-          chainId: parseInt(txParams.chainId),
-        },
-        message: {
-          nonce: parseInt(txParams.nonce),
-          gasLimit: BigInt(txParams.gasLimit || '21000'),
-          to: txParams.to,
-          value: ethers.parseEther(txParams.value || '0'),
-          data: txParams.data || '0x',
-          chainId: parseInt(txParams.chainId),
-        } as any // Using any to allow dynamic property addition
-      };
-
-      // Add gas pricing to the typed data message if needed
-      if (tx.gasPrice) {
-        typedData.types.Transaction.push({ name: 'gasPrice', type: 'uint256' });
-        typedData.message.gasPrice = ethers.parseUnits('10', 'gwei');
-      } else if (tx.maxFeePerGas && tx.maxPriorityFeePerGas) {
-        typedData.types.Transaction.push({ name: 'maxFeePerGas', type: 'uint256' });
-        typedData.types.Transaction.push({ name: 'maxPriorityFeePerGas', type: 'uint256' });
-        typedData.message.maxFeePerGas = ethers.parseUnits(txParams.maxFeePerGas!, 'gwei');
-        typedData.message.maxPriorityFeePerGas = ethers.parseUnits(txParams.maxPriorityFeePerGas!, 'gwei');
+      try {
+        // Sign the transaction with the keystore wallet
+        const signedTx = await keystoreWallet.signTransaction(tx);
+        
+        // Create the complete signed transaction object with serializable values
+        const completeSignedTx = JSON.stringify({
+          transaction: txObject, // Use our TransactionObject for serialization
+          serializedTransaction: signedTx,
+        });
+        
+        // Create a URL with the transaction data
+        const encodedTxData = encodeURIComponent(completeSignedTx);
+        const qrCodeData = `${broadcasterUrl}${encodedTxData}`;
+        
+        // Set the serialized signed transaction
+        setSerializedSignedTx(qrCodeData);
+        setErrorMessage('');
+      } catch (error: any) {
+        throw new Error(`Failed to sign transaction: ${error.message}`);
       }
-
-      // Convert BigInt values in the typed data to strings to make them JSON-serializable
-      const typedDataForJson = {
-        ...typedData,
-        message: {
-          ...typedData.message,
-          // Convert all potential BigInt values to strings
-          gasLimit: typedData.message.gasLimit.toString(),
-          value: typedData.message.value.toString(),
-        }
-      };
-      
-      // If there are gas price values, convert them to strings too
-      if ('gasPrice' in typedData.message) {
-        typedDataForJson.message.gasPrice = typedData.message.gasPrice.toString();
-      }
-      if ('maxFeePerGas' in typedData.message) {
-        typedDataForJson.message.maxFeePerGas = typedData.message.maxFeePerGas.toString();
-      }
-      if ('maxPriorityFeePerGas' in typedData.message) {
-        typedDataForJson.message.maxPriorityFeePerGas = typedData.message.maxPriorityFeePerGas.toString();
-      }
-      
-      // Request signature using eth_signTypedData_v4
-      const signature = await window.ethereum!.request({
-        method: "eth_signTypedData_v4",
-        params: [account, JSON.stringify(typedDataForJson)]
-      });
-      
-      // tx is already using toBeHex for all values, which makes it serializable
-      // but double-check there are no BigInt values left in the transaction object
-      
-      // Create the complete signed transaction object with serializable values
-      const completeSignedTx = JSON.stringify({
-        transaction: tx,
-        serializedTransaction: serializedTx,
-        signature: signature,
-        hash: txHash
-      });
-      
-      // Create a URL with the transaction data
-      const encodedTxData = encodeURIComponent(completeSignedTx);
-      const qrCodeData = `${broadcasterUrl}${encodedTxData}`;
-      
-      // Set the serialized signed transaction
-      setSerializedSignedTx(qrCodeData);
-      setErrorMessage('');
     } catch (error: any) {
       console.error("Error creating or signing transaction:", error);
       setErrorMessage("Failed to create or sign transaction: " + error.message);
     }
-  };
-
-  // Reset form
-  const resetForm = () => {
-    setTxParams({
-      to: '',
-      value: '',
-      gasLimit: '21000',
-      maxFeePerGas: '',
-      maxPriorityFeePerGas: '',
-      data: '',
-      chainId: '11155111',
-      nonce: '',
-    });
-    setSerializedSignedTx('');
-    setErrorMessage('');
   };
 
   return (
@@ -264,15 +204,39 @@ function App() {
         </div>
       )}
 
-      {/* Wallet Connection Section */}
-      <div className="wallet-section">
-        {!walletConnected ? (
-          <button onClick={connectWallet} className="connect-button">
-            Connect Wallet
-          </button>
-        ) : (
+      {/* Keystore Section */}
+      <div className="keystore-section">
+        <h2>Load Keystore File</h2>
+        <div className="form-group">
+          <label htmlFor="keystoreFile">Keystore File:</label>
+          <input
+            type="file"
+            id="keystoreFile"
+            onChange={handleKeystoreFileUpload}
+            accept=".json"
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="password">Password:</label>
+          <input
+            type="password"
+            id="password"
+            value={keystorePassword}
+            onChange={handleKeystorePasswordChange}
+            placeholder="Enter your keystore password"
+          />
+        </div>
+        <button 
+          onClick={loadKeystoreWallet} 
+          disabled={!keystoreContent || !keystorePassword}
+          className="connect-button"
+        >
+          Load Keystore Wallet
+        </button>
+        
+        {keystoreWallet && (
           <div className="wallet-info">
-            <p>Connected: {account.substring(0, 6)}...{account.substring(account.length - 4)}</p>
+            <p>Keystore Loaded: {keystoreWallet.address.substring(0, 6)}...{keystoreWallet.address.substring(keystoreWallet.address.length - 4)}</p>
           </div>
         )}
       </div>
@@ -317,7 +281,7 @@ function App() {
         </div>
         
         <div className="form-group">
-          <label htmlFor="maxFeePerGas">Max Fee (Gwei):</label>
+          <label htmlFor="maxFeePerGas">Max Fee Per Gas (Gwei):</label>
           <input
             type="text"
             id="maxFeePerGas"
@@ -357,7 +321,6 @@ function App() {
             type="text"
             id="chainId"
             name="chainId"
-            disabled
             value={txParams.chainId}
             onChange={handleInputChange}
           />
@@ -382,6 +345,7 @@ function App() {
             type="text"
             id="broadcasterUrl"
             name="broadcasterUrl"
+            disabled
             value={broadcasterUrl}
             onChange={handleBroadcasterUrlChange}
             placeholder="https://YOUR_GITHUB_USERNAME.github.io/Airgapped-signer/#/"
@@ -392,7 +356,7 @@ function App() {
         <div className="form-actions">
           <button 
             onClick={createAndSignTransaction} 
-            disabled={!walletConnected || !txParams.to}
+            disabled={!keystoreWallet || !txParams.to}
             className="sign-button"
           >
             Create & Sign Transaction

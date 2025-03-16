@@ -9,9 +9,9 @@ interface TransactionObject {
   to: string
   value: string
   gasLimit: string
-  chainId: number
+  chainId: string
   data: string
-  nonce: number
+  nonce: string
   maxFeePerGas?: string
   maxPriorityFeePerGas?: string
   gasPrice?: string
@@ -20,8 +20,6 @@ interface TransactionObject {
 interface SignedTransactionData {
   transaction: TransactionObject
   serializedTransaction: string
-  signature: string
-  hash: string
 }
 
 // Broadcast status types
@@ -52,23 +50,21 @@ const BroadcastPage = () => {
               to: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
               value: ethers.parseEther('0.1').toString(),
               gasLimit: '21000',
-              chainId: 11155111,
+              chainId: '11155111',
               data: '0x',
-              nonce: 0,
+              nonce: '0',
             },
-            serializedTransaction: '0xdemo_signature_for_testing_purposes_only',
-            signature: '0xdemo_signature_for_testing_purposes_only',
-            hash: '0xdemo_signature_for_testing_purposes_only'
+            serializedTransaction: '0xdemo_serialized_tx_for_testing_purposes_only'
           }
           setTransactionData(demoData)
           return
         }
         
-        // Real data should be base64 or URL encoded
+        // Real data should be URL encoded
         const decodedData = decodeURIComponent(txData)
         const parsedData: SignedTransactionData = JSON.parse(decodedData)
         
-        if (!parsedData.transaction || !parsedData.serializedTransaction || !parsedData.signature || !parsedData.hash) {
+        if (!parsedData.transaction || !parsedData.serializedTransaction) {
           throw new Error('Invalid transaction data format')
         }
         
@@ -95,35 +91,6 @@ const BroadcastPage = () => {
     initProvider()
   }, [])
   
-  // Verify signature (now handling EIP-712 typed data signature)
-  const verifySignature = async (): Promise<boolean> => {
-    if (!transactionData || !provider) return false
-    
-    try {
-      // Extract the signature components (r, s, v)
-      // EIP-712 signatures follow the same format as standard Ethereum signatures
-      const signature = transactionData.signature;
-      
-      // We need to get the address that signed the message
-      // We can recover it from the signature and the original hash
-      const signerAddress = ethers.recoverAddress(
-        transactionData.hash,
-        signature
-      );
-      
-      // Verify the recovered address matches the from address in the transaction
-      if (signerAddress.toLowerCase() !== transactionData.transaction.from.toLowerCase()) {
-        console.error('Signature validation failed: signer does not match sender');
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Signature verification failed:', error);
-      return false;
-    }
-  }
-  
   // Broadcast the transaction
   const broadcastTransaction = async () => {
     if (!transactionData || !provider) return
@@ -131,48 +98,22 @@ const BroadcastPage = () => {
     setBroadcastStatus('pending')
     
     try {
-      // Verify signature first
-      const isValid = await verifySignature()
-      if (!isValid) {
-        throw new Error('Invalid signature')
-      }
-      
       try {
-        // The serializedTransaction should be a complete RLP-encoded transaction
-        const rawTransaction = transactionData.serializedTransaction;
+        // Get the serialized transaction from Phantom's eth_signTransaction
+        const serializedTx = transactionData.serializedTransaction
         
         // Make sure it starts with 0x
-        const prefixedRawTx = rawTransaction.startsWith('0x') ? rawTransaction : `0x${rawTransaction}`;
+        const prefixedTx = serializedTx.startsWith('0x') ? serializedTx : `0x${serializedTx}`
         
-        console.log("Broadcasting serialized transaction:", prefixedRawTx);
+        console.log("Broadcasting serialized transaction:", prefixedTx)
         
-        // For EIP-712 signed transactions, we need to create the final transaction
-        // by combining the serialized transaction with the signature
-        // Extract r, s, v from the signature
-        const signature = transactionData.signature.slice(2); // Remove '0x'
-        const r = '0x' + signature.slice(0, 64);
-        const s = '0x' + signature.slice(64, 128);
-        let v = parseInt(signature.slice(128, 130), 16);
+        // Send the transaction to the network directly using broadcastTransaction
+        const tx = await provider.broadcastTransaction(prefixedTx)
         
-        // Adjust v based on EIP-155 (v = chain_id * 2 + 35 or chain_id * 2 + 36)
-        const chainId = transactionData.transaction.chainId;
-        if (v === 0 || v === 1) {
-          v = v + 27;
-        }
-        
-        // Create a full serialized transaction that includes the signature
-        const signedTx = ethers.concat([
-          prefixedRawTx,
-          r, s, '0x' + v.toString(16)
-        ]);
-        
-        // Send the transaction to the network
-        const tx = await provider.broadcastTransaction(signedTx);
-        
-        setTxHash(tx.hash);
-        setBroadcastStatus('success');
+        setTxHash(tx.hash)
+        setBroadcastStatus('success')
       } catch (error: any) {
-        throw new Error(`Failed to broadcast transaction: ${error.message}`);
+        throw new Error(`Failed to broadcast transaction: ${error.message}`)
       }
     } catch (error: any) {
       console.error('Transaction broadcast failed:', error)
@@ -245,8 +186,7 @@ const BroadcastPage = () => {
           
           <TransactionDetails 
             transaction={transactionData.transaction} 
-            signature={transactionData.signature}
-            hash={transactionData.hash}
+            hash={txHash || undefined}
           />
           
           {broadcastStatus === 'idle' && (
